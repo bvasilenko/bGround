@@ -1,0 +1,25 @@
+[package]
+name = "bground"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI claim-grounding checker. Reads claim plus evidence; emits proceed-or-stop directive."
+
+[lib]
+name = "bground"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bground"
+path = "src/main.rs"
+
+[dependencies]
+bsuite-core = { git = "https://github.com/bvasilenko/bsuite-core", branch = "main" }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2"
+proptest = "1"
