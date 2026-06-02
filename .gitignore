@@ -1,0 +1,7 @@
+target/
+Cargo.lock
+node_modules/
+.github/docs/TODO.md
+contribot.config.*.json
+contribot.state.*.json
+transcripts/
