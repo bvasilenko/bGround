@@ -1,6 +1,8 @@
 # bground
 
-CLI claim-grounding checker for agentic loops. Reads a typed claim plus supplied evidence; emits a `proceed` or `stop` directive on stdout with a discriminating exit code.
+CLI claim-grounding checker. Reads claim plus evidence; emits proceed-or-stop directive.
+
+Built for agentic loops. Parses a typed claim, takes supplied evidence, writes a verdict on stdout, exits with a discriminating code so the calling agent can branch.
 
 ```
 bground verify <claim>            check a claim against supplied evidence; exit 0 / 1 / 2 / 64
