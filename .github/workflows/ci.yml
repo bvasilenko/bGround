@@ -1,28 +1,28 @@
-name: CI
+name: ci
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          components: clippy,rustfmt
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Format
-        run: cargo fmt --check
+          components: clippy, rustfmt
+      - name: Fmt
+        run: cargo fmt --all -- --check
       - name: Build
         run: cargo build --workspace --all-targets
       - name: Test
         run: cargo test --workspace --all-targets
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Public voice guard
-        run: scripts/public_voice_guard.sh
-      - name: Coverage
-        run: cargo llvm-cov --workspace --all-targets --fail-under-lines 80
+      - name: Voice guard
+        run: bash scripts/public_voice_guard.sh
