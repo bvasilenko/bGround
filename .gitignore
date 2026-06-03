@@ -5,3 +5,4 @@ node_modules/
 contribot.config.*.json
 contribot.state.*.json
 transcripts/
+DEMO.md
