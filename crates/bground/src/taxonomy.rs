@@ -2,20 +2,6 @@ use crate::BgroundError;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
-/// Supported claim taxonomy for this version.
-///
-/// Candidate names: FileExists, FnDefined, FnSignature, ValueEquals,
-/// DependencyInstalled, StateEquals, FnReturnType, UrlReturns,
-/// CmdOutputMatches, Behavior, CoherentRefactor, CoherentMigration,
-/// CoherentSpecImpl, CoherentContract, CoherentTestCover, CoherentDepUpgrade,
-/// CoherentRunbookAlignment, CoherentPerfBaseline.
-///
-/// Selected names: FileExists, FnDefined, FnSignature, ValueEquals,
-/// DependencyInstalled, StateEquals, FnReturnType, UrlReturns,
-/// CmdOutputMatches, Behavior, CoherentRefactor, CoherentMigration,
-/// CoherentSpecImpl, CoherentContract, CoherentTestCover, CoherentDepUpgrade.
-///
-/// Excluded names: CoherentRunbookAlignment, CoherentPerfBaseline.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum ClaimType {
     #[serde(rename = "file-exists")]
@@ -93,6 +79,27 @@ impl ClaimType {
             Self::CoherentContract => "coherent-contract",
             Self::CoherentTestCover => "coherent-test-cover",
             Self::CoherentDepUpgrade => "coherent-dep-upgrade",
+        }
+    }
+
+    pub const fn variant_name(self) -> &'static str {
+        match self {
+            Self::FileExists => "FileExists",
+            Self::FnDefined => "FnDefined",
+            Self::FnSignature => "FnSignature",
+            Self::ValueEquals => "ValueEquals",
+            Self::DependencyInstalled => "DependencyInstalled",
+            Self::StateEquals => "StateEquals",
+            Self::FnReturnType => "FnReturnType",
+            Self::UrlReturns => "UrlReturns",
+            Self::CmdOutputMatches => "CmdOutputMatches",
+            Self::Behavior => "Behavior",
+            Self::CoherentRefactor => "CoherentRefactor",
+            Self::CoherentMigration => "CoherentMigration",
+            Self::CoherentSpecImpl => "CoherentSpecImpl",
+            Self::CoherentContract => "CoherentContract",
+            Self::CoherentTestCover => "CoherentTestCover",
+            Self::CoherentDepUpgrade => "CoherentDepUpgrade",
         }
     }
 }

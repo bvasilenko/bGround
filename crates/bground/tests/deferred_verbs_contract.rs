@@ -1,5 +1,5 @@
-use bground::{VerifyArgs, deferred_verbs, verify};
-use std::{any::Any, collections::BTreeSet, panic, path::PathBuf, sync::Mutex};
+use bground::deferred_verbs;
+use std::{any::Any, collections::BTreeSet, panic, sync::Mutex};
 
 type DeferredCall = fn();
 
@@ -10,12 +10,8 @@ struct DeferredVerbCase {
     run: DeferredCall,
 }
 
-fn deferred_verb_cases() -> [DeferredVerbCase; 5] {
+fn deferred_verb_cases() -> [DeferredVerbCase; 4] {
     [
-        DeferredVerbCase {
-            name: "verify",
-            run: call_verify,
-        },
         DeferredVerbCase {
             name: "update",
             run: call_update,
@@ -35,10 +31,6 @@ fn deferred_verb_cases() -> [DeferredVerbCase; 5] {
     ]
 }
 
-fn call_verify() {
-    let _ = verify::run(verify_args());
-}
-
 fn call_update() {
     let _ = deferred_verbs::update();
 }
@@ -53,17 +45,6 @@ fn call_tail() {
 
 fn call_explain() {
     let _ = deferred_verbs::explain();
-}
-
-fn verify_args() -> VerifyArgs {
-    VerifyArgs {
-        claim: "file-exists:README.md:README exists".to_owned(),
-        evidence: Vec::new(),
-        manifest: Option::<PathBuf>::None,
-        json: false,
-        quiet: false,
-        reason: Option::<String>::None,
-    }
 }
 
 fn assert_not_yet_implemented(call: DeferredCall) {
@@ -100,7 +81,7 @@ fn every_deferred_verb_has_a_unique_contract_case() {
     let cases = deferred_verb_cases();
     let unique_names = cases.iter().map(|case| case.name).collect::<BTreeSet<_>>();
 
-    assert_eq!(cases.len(), 5);
+    assert_eq!(cases.len(), 4);
     assert_eq!(unique_names.len(), cases.len());
 }
 

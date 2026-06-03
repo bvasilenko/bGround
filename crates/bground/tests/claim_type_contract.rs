@@ -48,6 +48,25 @@ fn supported_claim_type_set_is_closed_ordered_and_unique() {
 }
 
 #[test]
+fn supported_claim_type_variant_names_are_closed_ordered_unique_and_rust_style() {
+    let actual_names = ClaimType::ALL.map(|claim_type| claim_type.variant_name());
+    let unique_names = actual_names.into_iter().collect::<BTreeSet<_>>();
+
+    assert_eq!(unique_names.len(), EXPECTED_NAMES.len());
+
+    for name in actual_names {
+        assert!(!name.is_empty());
+        assert!(name.is_ascii());
+        assert!(
+            name.bytes()
+                .next()
+                .is_some_and(|byte| byte.is_ascii_uppercase())
+        );
+        assert!(name.bytes().all(|byte| byte.is_ascii_alphanumeric()));
+    }
+}
+
+#[test]
 fn supported_claim_type_names_use_lowercase_kebab_case() {
     for claim_type in ClaimType::ALL {
         let name = claim_type.stable_name();

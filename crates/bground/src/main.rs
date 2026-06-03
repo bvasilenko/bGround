@@ -21,7 +21,7 @@ fn run(cli: BgroundCli) -> Result<std::process::ExitCode, bground::BgroundError>
                 println!("{claim_type}");
             }
         }
-        Cmd::Verify(args) => verify::validate_args(&args)?,
+        Cmd::Verify(args) => return verify::run(args),
         Cmd::Update | Cmd::Init | Cmd::Tail | Cmd::Explain => {}
     }
 
