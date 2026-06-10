@@ -52,7 +52,7 @@ scan_regex '[A-Z]+-[A-Z0-9-]+-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+' 'public voice v
 scan_literal "Co-Authored"'-By:' 'public voice violation: prohibited attribution found'
 scan_literal "$(printf '\342\200\224')" 'public voice violation: em dash found'
 
-expected='Prompt lookup tool. Agent names a claim type from a fixed list of 16; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.'
+expected='Prompt lookup tool. Agent names a claim type from a fixed list; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.'
 if ! grep -Fq "description = \"$expected\"" crates/bground/Cargo.toml; then
   echo 'public voice violation: Cargo description does not match expected public text' >&2
   exit 1

@@ -1,6 +1,6 @@
 # bground
 
-Prompt lookup tool. Agent names a claim type from a fixed list of 16; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.
+Prompt lookup tool. Agent names a claim type from a fixed list; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.
 
 Built for agentic loops. Parses a typed claim, takes supplied evidence, writes a verdict on stdout, exits with a discriminating code so the calling agent can branch.
 

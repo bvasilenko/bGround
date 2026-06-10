@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Prompt lookup tool. Agent names a claim type from a fixed list of 16; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence."
+description = "Prompt lookup tool. Agent names a claim type from a fixed list; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence."
 
 [lib]
 name = "bground"
