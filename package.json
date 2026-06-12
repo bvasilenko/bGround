@@ -1,0 +1,27 @@
+{
+  "name": "@booga/bground",
+  "version": "0.1.1",
+  "description": "Prompt lookup tool. Agent names a claim type from a fixed list; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.",
+  "bin": {
+    "bground": "./bin/bground.js"
+  },
+  "files": [
+    "bin",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node ./bin/install.js"
+  },
+  "keywords": [
+    "cli",
+    "agent",
+    "prompt",
+    "lookup"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bvasilenko/bGround.git"
+  }
+}
