@@ -1,5 +1,8 @@
 # bground
 
+For agents that make claims. Before your AI coding agent writes "the parser handles UTF-8" or "we cache for 5 minutes", bground verifies that claim against the evidence the agent cited: a function signature, a test case, a config row, a doc paragraph. If the evidence does not back the claim, bground emits an UNGROUNDED directive that tells the agent which evidence to cite or which claim to drop. The claim taxonomy is closed (12 types at v0.1); the prompt library that powers grounding evolves continuously via empirical-lift evaluation, so the same `bground verify` invocation gets stricter at catching ungrounded claims as the corpus matures.
+
+
 Prompt lookup tool. Agent names a claim type from a fixed list; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.
 
 Built for agentic loops. Parses a typed claim, takes supplied evidence, writes a verdict on stdout, exits with a discriminating code so the calling agent can branch.
