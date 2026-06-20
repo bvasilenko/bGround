@@ -1,10 +1,12 @@
 pub mod cli;
+pub mod corpus_index;
 pub mod deferred_verbs;
 pub mod error;
 pub mod evidence_state;
 pub mod routing;
 pub mod substrate_input;
 pub mod taxonomy;
+pub mod update;
 pub mod verify;
 
 pub use cli::{BgroundCli, Cmd, VerifyArgs};

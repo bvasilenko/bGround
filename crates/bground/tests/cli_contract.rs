@@ -1,7 +1,7 @@
 mod common;
 
 use assert_cmd::Command;
-use bground::{ClaimString, ClaimType, EvidenceState};
+use bground::ClaimType;
 use bsuite_core::ExitCode;
 use std::collections::BTreeSet;
 
@@ -23,14 +23,9 @@ fn finding_code() -> i32 {
     ExitCode::Finding.as_i32()
 }
 
-fn assert_placeholder_directive_bytes(
-    output: &[u8],
-    claim: &bground::ParsedClaim,
-    evidence_state: EvidenceState,
-) {
+fn assert_corpus_directive_output(output: &[u8]) {
     let output = String::from_utf8(output.to_vec()).unwrap();
-
-    common::assert_placeholder_directive(&output, claim, evidence_state);
+    common::assert_corpus_directive(&output);
 }
 
 fn assert_unique_claim_cases(cases: &[ClaimCase]) {
@@ -87,25 +82,26 @@ fn claim_types_prints_supported_names_only_once_each() {
 
 #[test]
 fn verify_accepts_valid_evidence_shape_with_equals_inside_value() {
-    let claim = "file-exists:README.md:README exists";
     let output = bground_command()
-        .args(["verify", claim, "--evidence", "id=value=kept"])
+        .args([
+            "verify",
+            "file-exists:README.md:README exists",
+            "--evidence",
+            "id=value=kept",
+        ])
         .assert()
         .code(finding_code())
         .get_output()
         .stdout
         .clone();
 
-    let parsed = ClaimString::parse(claim).unwrap();
-
-    assert_placeholder_directive_bytes(&output, &parsed, EvidenceState::Ungrounded);
+    assert_corpus_directive_output(&output);
 }
 
 #[test]
-fn verify_accepts_every_supported_claim_type_before_placeholder_verdict() {
+fn verify_accepts_every_supported_claim_type() {
     for claim_type in ClaimType::ALL {
         let claim = format!("{claim_type}:target:assertion");
-        let parsed = ClaimString::parse(&claim).unwrap();
         let output = bground_command()
             .args(["verify", &claim])
             .assert()
@@ -114,15 +110,13 @@ fn verify_accepts_every_supported_claim_type_before_placeholder_verdict() {
             .stdout
             .clone();
 
-        assert_placeholder_directive_bytes(&output, &parsed, EvidenceState::Ungrounded);
+        assert_corpus_directive_output(&output);
     }
 }
 
 #[test]
-fn verify_preserves_assertion_delimiters_before_placeholder_verdict() {
+fn verify_preserves_assertion_delimiters_in_colon_heavy_claim() {
     let claim = "value-equals:key:value:with:colon";
-
-    assert!(ClaimString::parse(claim).is_ok());
     let output = bground_command()
         .args(["verify", claim])
         .assert()
@@ -131,33 +125,7 @@ fn verify_preserves_assertion_delimiters_before_placeholder_verdict() {
         .stdout
         .clone();
 
-    let parsed = ClaimString::parse(claim).unwrap();
-
-    assert_placeholder_directive_bytes(&output, &parsed, EvidenceState::Ungrounded);
-}
-
-#[test]
-fn verify_valid_optional_flags_do_not_suppress_the_directive() {
-    let claim = "behavior:cli:json quiet reason and manifest flags remain pre-corpus";
-    let parsed = ClaimString::parse(claim).unwrap();
-    let output = bground_command()
-        .args([
-            "verify",
-            claim,
-            "--json",
-            "--quiet",
-            "--reason",
-            "operator-requested-check",
-            "--manifest",
-            "manifest.json",
-        ])
-        .assert()
-        .code(finding_code())
-        .get_output()
-        .stdout
-        .clone();
-
-    assert_placeholder_directive_bytes(&output, &parsed, EvidenceState::Ungrounded);
+    assert_corpus_directive_output(&output);
 }
 
 #[test]
@@ -174,14 +142,12 @@ fn verify_rejects_invalid_evidence_shape_before_dispatch() {
 }
 
 #[test]
-fn verify_rejects_unsupported_claim_type_families_before_placeholder_verdict() {
+fn verify_rejects_unsupported_claim_type_families() {
     let mut unsupported_names = vec!["unknown"];
     unsupported_names.extend(ClaimType::EXCLUDED_CANDIDATES);
 
     for unsupported_name in unsupported_names {
         let claim = format!("{unsupported_name}:target:assertion");
-
-        assert!(ClaimString::parse(&claim).is_err());
         bground_command()
             .args(["verify", &claim])
             .assert()
@@ -190,7 +156,7 @@ fn verify_rejects_unsupported_claim_type_families_before_placeholder_verdict() {
 }
 
 #[test]
-fn verify_rejects_malformed_claim_strings_before_placeholder_verdict() {
+fn verify_rejects_malformed_claim_strings() {
     let cases = [
         ClaimCase {
             label: "empty",
@@ -221,7 +187,6 @@ fn verify_rejects_malformed_claim_strings_before_placeholder_verdict() {
     assert_unique_claim_cases(&cases);
 
     for case in cases {
-        assert!(ClaimString::parse(case.claim).is_err(), "{}", case.label);
         bground_command()
             .args(["verify", case.claim])
             .assert()

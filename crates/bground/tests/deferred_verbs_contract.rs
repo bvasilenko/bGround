@@ -10,12 +10,8 @@ struct DeferredVerbCase {
     run: DeferredCall,
 }
 
-fn deferred_verb_cases() -> [DeferredVerbCase; 4] {
+fn deferred_verb_cases() -> [DeferredVerbCase; 3] {
     [
-        DeferredVerbCase {
-            name: "update",
-            run: call_update,
-        },
         DeferredVerbCase {
             name: "init",
             run: call_init,
@@ -29,10 +25,6 @@ fn deferred_verb_cases() -> [DeferredVerbCase; 4] {
             run: call_explain,
         },
     ]
-}
-
-fn call_update() {
-    let _ = deferred_verbs::update();
 }
 
 fn call_init() {
@@ -81,7 +73,7 @@ fn every_deferred_verb_has_a_unique_contract_case() {
     let cases = deferred_verb_cases();
     let unique_names = cases.iter().map(|case| case.name).collect::<BTreeSet<_>>();
 
-    assert_eq!(cases.len(), 4);
+    assert_eq!(cases.len(), 3);
     assert_eq!(unique_names.len(), cases.len());
 }
 

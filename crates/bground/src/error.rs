@@ -10,6 +10,17 @@ pub enum BgroundError {
     UnknownClaimType(String),
     #[error("unknown evidence state: {0}")]
     UnknownEvidenceState(String),
+    #[error("corpus load failed: {0}")]
+    CorpusLoad(String),
     #[error(transparent)]
     Core(#[from] bsuite_core::BsuiteCoreError),
+}
+
+impl BgroundError {
+    pub fn is_malformed_input(&self) -> bool {
+        matches!(
+            self,
+            Self::ClaimStringMalformed(_) | Self::EvidenceMapInvalid(_) | Self::UnknownClaimType(_)
+        )
+    }
 }
