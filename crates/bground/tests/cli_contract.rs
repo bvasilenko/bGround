@@ -5,35 +5,13 @@ use bground::ClaimType;
 use bsuite_core::ExitCode;
 use std::collections::BTreeSet;
 
-#[derive(Clone, Copy)]
-struct ClaimCase {
-    label: &'static str,
-    claim: &'static str,
-}
-
 fn bground_command() -> Command {
     Command::cargo_bin("bground").unwrap()
 }
 
-fn usage_code() -> i32 {
-    ExitCode::Usage.as_i32()
-}
-
-fn finding_code() -> i32 {
-    ExitCode::Finding.as_i32()
-}
-
 fn assert_corpus_directive_output(output: &[u8]) {
-    let output = String::from_utf8(output.to_vec()).unwrap();
-    common::assert_corpus_directive(&output);
-}
-
-fn assert_unique_claim_cases(cases: &[ClaimCase]) {
-    let labels = cases.iter().map(|case| case.label).collect::<BTreeSet<_>>();
-    let claims = cases.iter().map(|case| case.claim).collect::<BTreeSet<_>>();
-
-    assert_eq!(labels.len(), cases.len(), "duplicate claim-case label");
-    assert_eq!(claims.len(), cases.len(), "duplicate claim-case input");
+    let text = String::from_utf8(output.to_vec()).unwrap();
+    common::assert_corpus_directive(&text);
 }
 
 #[test]
@@ -53,7 +31,7 @@ fn help_exits_successfully_and_describes_public_commands() {
 }
 
 #[test]
-fn claim_types_prints_supported_names_only_once_each() {
+fn claim_types_prints_each_supported_name_exactly_once() {
     let output = bground_command()
         .arg("claim-types")
         .assert()
@@ -62,21 +40,30 @@ fn claim_types_prints_supported_names_only_once_each() {
         .stdout
         .clone();
     let output = String::from_utf8(output).unwrap();
-    let lines = output.lines().collect::<Vec<_>>();
+    let lines: Vec<&str> = output.lines().collect();
 
-    assert_eq!(lines.len(), ClaimType::ALL.len());
+    assert_eq!(
+        lines.len(),
+        ClaimType::ALL.len(),
+        "claim-types must print exactly one line per supported claim type"
+    );
 
     for claim_type in ClaimType::ALL {
         let occurrences = lines
             .iter()
             .filter(|line| **line == claim_type.stable_name())
             .count();
-
-        assert_eq!(occurrences, 1, "unexpected count for {claim_type}");
+        assert_eq!(
+            occurrences, 1,
+            "claim type '{claim_type}' must appear exactly once"
+        );
     }
 
     for excluded in ClaimType::EXCLUDED_CANDIDATES {
-        assert!(!lines.contains(&excluded));
+        assert!(
+            !lines.contains(&excluded),
+            "excluded candidate '{excluded}' must not appear in claim-types output"
+        );
     }
 }
 
@@ -90,7 +77,7 @@ fn verify_accepts_valid_evidence_shape_with_equals_inside_value() {
             "id=value=kept",
         ])
         .assert()
-        .code(finding_code())
+        .code(ExitCode::Finding.as_i32())
         .get_output()
         .stdout
         .clone();
@@ -105,7 +92,7 @@ fn verify_accepts_every_supported_claim_type() {
         let output = bground_command()
             .args(["verify", &claim])
             .assert()
-            .code(finding_code())
+            .code(ExitCode::Finding.as_i32())
             .get_output()
             .stdout
             .clone();
@@ -120,7 +107,7 @@ fn verify_preserves_assertion_delimiters_in_colon_heavy_claim() {
     let output = bground_command()
         .args(["verify", claim])
         .assert()
-        .code(finding_code())
+        .code(ExitCode::Finding.as_i32())
         .get_output()
         .stdout
         .clone();
@@ -143,53 +130,38 @@ fn verify_rejects_invalid_evidence_shape_before_dispatch() {
 
 #[test]
 fn verify_rejects_unsupported_claim_type_families() {
-    let mut unsupported_names = vec!["unknown"];
-    unsupported_names.extend(ClaimType::EXCLUDED_CANDIDATES);
+    let claims = common::malformed_claim_type_claims();
 
-    for unsupported_name in unsupported_names {
-        let claim = format!("{unsupported_name}:target:assertion");
+    let unique: BTreeSet<_> = claims.iter().collect();
+    assert_eq!(
+        unique.len(),
+        claims.len(),
+        "malformed_claim_type_claims() contains duplicate entries"
+    );
+
+    for claim in &claims {
         bground_command()
-            .args(["verify", &claim])
+            .args(["verify", claim])
             .assert()
-            .code(usage_code());
+            .code(ExitCode::Usage.as_i32());
     }
 }
 
 #[test]
 fn verify_rejects_malformed_claim_strings() {
-    let cases = [
-        ClaimCase {
-            label: "empty",
-            claim: "",
-        },
-        ClaimCase {
-            label: "missing-target-and-assertion",
-            claim: "file-exists",
-        },
-        ClaimCase {
-            label: "missing-assertion",
-            claim: "file-exists:target",
-        },
-        ClaimCase {
-            label: "empty-type",
-            claim: ":target:assertion",
-        },
-        ClaimCase {
-            label: "empty-target",
-            claim: "file-exists::assertion",
-        },
-        ClaimCase {
-            label: "empty-assertion",
-            claim: "file-exists:target:",
-        },
-    ];
+    let claims = common::MALFORMED_CLAIM_SHAPES;
 
-    assert_unique_claim_cases(&cases);
+    let unique: BTreeSet<_> = claims.iter().collect();
+    assert_eq!(
+        unique.len(),
+        claims.len(),
+        "MALFORMED_CLAIM_SHAPES contains duplicate entries"
+    );
 
-    for case in cases {
+    for &claim in claims {
         bground_command()
-            .args(["verify", case.claim])
+            .args(["verify", claim])
             .assert()
-            .code(usage_code());
+            .code(ExitCode::Usage.as_i32());
     }
 }

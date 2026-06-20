@@ -6,7 +6,7 @@ fn bground_command() -> Command {
 }
 
 #[test]
-fn update_subcommand_exits_cleanly_when_update_endpoint_returns_up_to_date() {
+fn update_subcommand_fails_when_manifest_signature_verification_fails() {
     let server = MockServer::start();
 
     let manifest_json = serde_json::json!({

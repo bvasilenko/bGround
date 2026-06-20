@@ -4,13 +4,12 @@ use ed25519_dalek::VerifyingKey;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-/// Extended per-entry schema that adds the bGround-local `claim_type`
-/// discriminator field.  bCore's `CorpusEntry` does not carry `claim_type`
-/// and does not use `deny_unknown_fields`, so this field is present in the
-/// TOML but invisible to bCore's signature computation.  The mitigating
-/// invariant: completeness validation at construction requires all 16
-/// `ClaimType` variants present exactly once, and the embedded corpus bytes
-/// are compile-time constants so they cannot be tampered at runtime.
+/// bCore's `CorpusEntry` does not carry `claim_type` and does not use
+/// `deny_unknown_fields`, so this field is present in the TOML but invisible
+/// to bCore's signature computation.  The mitigating invariant: completeness
+/// validation at construction requires all 16 `ClaimType` variants present
+/// exactly once, and the embedded corpus bytes are compile-time constants so
+/// they cannot be tampered at runtime.
 #[derive(Deserialize)]
 struct ExtendedCorpusFile {
     entries: Vec<ExtendedCorpusEntry>,

@@ -23,4 +23,12 @@ impl BgroundError {
             Self::ClaimStringMalformed(_) | Self::EvidenceMapInvalid(_) | Self::UnknownClaimType(_)
         )
     }
+
+    pub fn into_core(self) -> bsuite_core::BsuiteCoreError {
+        match self {
+            Self::Core(e) => e,
+            Self::CorpusLoad(msg) => bsuite_core::BsuiteCoreError::CorpusDeserializationFailed(msg),
+            other => bsuite_core::BsuiteCoreError::PromptResolution(other.to_string()),
+        }
+    }
 }

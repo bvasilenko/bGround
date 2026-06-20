@@ -1,120 +1,100 @@
-use bground::corpus_index::ClaimCorpusIndex;
+mod invocation;
+mod runtime;
+
 use bground::{BgroundCli, BgroundError, ClaimType, Cmd};
 use bsuite_core::{
-    BsuiteCoreError, EmitFormat, ExitCode, FileSystemManifestOverlayReader,
-    FileSystemTranscriptAppender, FullAdapterHostBinder, HostContext, ManifestOverlayReader,
-    ProcessExitEmitter, TranscriptAppender, TranscriptRecord, format_context_tag,
-    prompt_resolver::DirectiveString,
+    BsuiteCoreError, EmitFormat, ExitCode, ProcessExitEmitter, prompt_resolver::DirectiveString,
 };
 use clap::Parser;
+use invocation::InvocationTranscript;
+use runtime::BinaryRuntime;
 use std::path::PathBuf;
-use std::time::Instant;
-use ulid::Ulid;
-
-const CORPUS_TOML: &str = include_str!("../corpus/bground-v0.toml");
-const PUBKEY_BYTES: &[u8] = include_bytes!("../corpus/bground-v0-pubkey.bin");
 
 fn main() {
-    let started_at = Instant::now();
     let cli = BgroundCli::parse();
-
-    let format = if cmd_wants_json(&cli.cmd) {
-        EmitFormat::Json
-    } else {
-        EmitFormat::Plain
-    };
+    let format = emit_format_for(&cli.cmd);
     let mut emitter = ProcessExitEmitter::new(format);
 
-    let result = run(cli, started_at);
-    let exit_code = dispatch_to_emitter(result, &mut emitter);
+    let exit_code = match init_and_run(cli) {
+        Ok(CommandOutcome::Directive {
+            directive,
+            exit_code,
+        }) => emitter.emit_directive(Ok((directive, exit_code))),
+        Ok(CommandOutcome::Silent(exit_code)) => exit_code,
+        Err(RunError::Malformed(e)) => {
+            eprintln!("{e}");
+            ExitCode::Usage
+        }
+        Err(RunError::Internal(e)) => emitter.emit_directive(Err(e)),
+    };
+
     std::process::exit(exit_code.as_i32());
 }
 
-fn run(cli: BgroundCli, started_at: Instant) -> Result<(DirectiveString, ExitCode), RunError> {
-    let pubkey = load_pubkey()?;
+fn init_and_run(cli: BgroundCli) -> Result<CommandOutcome, RunError> {
+    let runtime = BinaryRuntime::init(install_dir()).map_err(RunError::Internal)?;
+    let invocation = InvocationTranscript::start(
+        runtime.host_context,
+        runtime.invocation_context.clone(),
+        runtime.corpus_version,
+    );
+    run(cli, runtime, invocation)
+}
 
-    let corpus = ClaimCorpusIndex::from_toml_signed(CORPUS_TOML, &pubkey)
-        .map_err(|e| RunError::Internal(bground_to_core(e)))?;
-
-    let install_dir = install_dir();
-    let overlay_reader = FileSystemManifestOverlayReader::new("bground", &install_dir);
-    let _overlay = overlay_reader
-        .read()
-        .unwrap_or_else(|_| bsuite_core::ManifestOverlay::empty());
-
-    let host_binder = FullAdapterHostBinder::from_env().map_err(RunError::Internal)?;
-    let host_context = host_binder.resolved_host_context();
-
-    let appender = FileSystemTranscriptAppender::new("bground").map_err(RunError::Internal)?;
-
+fn run(
+    cli: BgroundCli,
+    runtime: BinaryRuntime,
+    invocation: InvocationTranscript,
+) -> Result<CommandOutcome, RunError> {
     match cli.cmd {
         Cmd::Verify(args) => {
-            let outcome = bground::verify::run(&args, &corpus, host_context).map_err(|e| {
-                if e.is_malformed_input() {
-                    RunError::Malformed(e)
-                } else {
-                    RunError::Internal(bground_to_core(e))
-                }
-            })?;
-
-            let (directive, exit_code) = outcome;
-
-            append_transcript(
-                &appender,
-                host_context,
+            let result = bground::verify::run(&args, &runtime.corpus, runtime.host_context)
+                .map_err(classify_bground_error);
+            let exit_code = result
+                .as_ref()
+                .map_or_else(|e| e.exit_code(), |(_, code)| *code);
+            invocation.flush(&runtime.appender, exit_code, result.is_ok());
+            result.map(|(directive, exit_code)| CommandOutcome::Directive {
+                directive,
                 exit_code,
-                true,
-                host_binder.invocation_context(),
-                started_at,
-            );
-
-            Ok((directive, exit_code))
+            })
         }
 
         Cmd::ClaimTypes => {
-            for claim_type in ClaimType::ALL {
-                println!("{claim_type}");
-            }
-            append_transcript(
-                &appender,
-                host_context,
-                ExitCode::Success,
-                false,
-                host_binder.invocation_context(),
-                started_at,
-            );
-            Ok((DirectiveString::new(String::new()), ExitCode::Success))
+            let listing = ClaimType::ALL
+                .iter()
+                .map(|ct| ct.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            invocation.flush(&runtime.appender, ExitCode::Success, false);
+            Ok(CommandOutcome::Directive {
+                directive: DirectiveString::new(listing),
+                exit_code: ExitCode::Success,
+            })
         }
 
         Cmd::Update => {
-            bground::update::run(&install_dir)
-                .map_err(|e| RunError::Internal(bground_to_core(e)))?;
-            Ok((DirectiveString::new(String::new()), ExitCode::Success))
+            let result = bground::update::run(&runtime.install_dir)
+                .map_err(|e| RunError::Internal(e.into_core()));
+            let exit_code = result
+                .as_ref()
+                .map_or_else(|e| e.exit_code(), |()| ExitCode::Success);
+            invocation.flush(&runtime.appender, exit_code, false);
+            result.map(|()| CommandOutcome::Silent(ExitCode::Success))
         }
 
         Cmd::Init | Cmd::Tail | Cmd::Explain => {
-            Ok((DirectiveString::new(String::new()), ExitCode::Success))
+            invocation.flush(&runtime.appender, ExitCode::Success, false);
+            Ok(CommandOutcome::Silent(ExitCode::Success))
         }
     }
 }
 
-fn bground_to_core(e: BgroundError) -> BsuiteCoreError {
-    match e {
-        BgroundError::Core(core_err) => core_err,
-        BgroundError::CorpusLoad(msg) => BsuiteCoreError::CorpusDeserializationFailed(msg),
-        other => BsuiteCoreError::PromptResolution(other.to_string()),
+fn emit_format_for(cmd: &Cmd) -> EmitFormat {
+    match cmd {
+        Cmd::Verify(args) if args.json => EmitFormat::Json,
+        _ => EmitFormat::Plain,
     }
-}
-
-fn load_pubkey() -> Result<ed25519_dalek::VerifyingKey, RunError> {
-    let bytes: [u8; 32] = PUBKEY_BYTES.try_into().map_err(|_| {
-        RunError::Internal(BsuiteCoreError::CorpusDeserializationFailed(
-            "embedded pubkey is not 32 bytes".to_owned(),
-        ))
-    })?;
-    ed25519_dalek::VerifyingKey::from_bytes(&bytes).map_err(|e| {
-        RunError::Internal(BsuiteCoreError::CorpusDeserializationFailed(e.to_string()))
-    })
 }
 
 fn install_dir() -> PathBuf {
@@ -124,63 +104,34 @@ fn install_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn append_transcript(
-    appender: &FileSystemTranscriptAppender,
-    host_context: HostContext,
-    exit_code: ExitCode,
-    directive_emitted: bool,
-    invocation_context: Option<&bsuite_core::HostInvocationContext>,
-    started_at: Instant,
-) {
-    let context_tag = invocation_context.map(format_context_tag);
-    let additional_fields = match context_tag {
-        Some(tag) => serde_json::json!({ "context_tag": tag }),
-        None => serde_json::json!({}),
-    };
-
-    let record = TranscriptRecord {
-        schema_version: 1,
-        binary_name: "bground".to_owned(),
-        binary_version: env!("CARGO_PKG_VERSION").to_owned(),
-        invocation_id: Ulid::new().to_string(),
-        timestamp: chrono::Utc::now(),
-        routing_key: bground::routing_key(),
-        host_context,
-        exit_code: exit_code.as_i32() as u8,
-        directive_emitted,
-        elapsed_ms: started_at.elapsed().as_millis() as u64,
-        corpus_version: 1,
-        additional_fields,
-    };
-
-    let _ = appender.append(&record);
+fn classify_bground_error(e: BgroundError) -> RunError {
+    if e.is_malformed_input() {
+        RunError::Malformed(e)
+    } else {
+        RunError::Internal(e.into_core())
+    }
 }
 
-fn cmd_wants_json(cmd: &Cmd) -> bool {
-    matches!(cmd, Cmd::Verify(args) if args.json)
+#[derive(Debug)]
+enum CommandOutcome {
+    Directive {
+        directive: DirectiveString,
+        exit_code: ExitCode,
+    },
+    Silent(ExitCode),
 }
 
+#[derive(Debug)]
 enum RunError {
     Malformed(BgroundError),
     Internal(BsuiteCoreError),
 }
 
-fn dispatch_to_emitter(
-    result: Result<(DirectiveString, ExitCode), RunError>,
-    emitter: &mut ProcessExitEmitter,
-) -> ExitCode {
-    match result {
-        Ok((directive, exit_code)) => {
-            if !directive.as_str().is_empty() {
-                emitter.emit_directive(Ok((directive, exit_code)))
-            } else {
-                exit_code
-            }
+impl RunError {
+    fn exit_code(&self) -> ExitCode {
+        match self {
+            Self::Malformed(_) => ExitCode::Usage,
+            Self::Internal(_) => ExitCode::InternalError,
         }
-        Err(RunError::Malformed(e)) => {
-            eprintln!("{e}");
-            ExitCode::Usage
-        }
-        Err(RunError::Internal(e)) => emitter.emit_directive(Err(e)),
     }
 }

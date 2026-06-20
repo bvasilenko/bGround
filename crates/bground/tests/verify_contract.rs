@@ -1,7 +1,7 @@
 mod common;
 
+use bground::ClaimType;
 use bground::corpus_index::ClaimCorpusIndex;
-use bground::{ClaimString, ClaimType};
 use bsuite_core::ExitCode;
 use ed25519_dalek::VerifyingKey;
 
