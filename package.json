@@ -1,6 +1,6 @@
 {
   "name": "@booga/bground",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Prompt lookup tool. Agent names a claim type from a fixed list; bground returns the prompt for that claim type. The prompt tells the agent how to check the claim against supplied evidence.",
   "bin": {
     "bground": "./bin/bground.js"
